@@ -5,7 +5,8 @@ WebAssembly builds of [MAME](https://www.mamedev.org/) **0.244**, compiled unmod
 
 A full MAME is too large to load in a browser, so the drivers are split into bundles
 (`bundles.json`: bundle name → driver source files). Each bundle builds to
-`<bundle>.js` + `<bundle>.wasm`.
+`<bundle>.js` + `<bundle>.wasm`, linked with Emscripten's IndexedDB file system (`-lidbfs.js`)
+so a page can keep MAME's settings, NVRAM and save states.
 
 ## Building
 
