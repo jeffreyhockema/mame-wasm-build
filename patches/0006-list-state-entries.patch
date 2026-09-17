@@ -1,6 +1,6 @@
 --- a/src/emu/machine.cpp
 +++ b/src/emu/machine.cpp
-@@ -1430,6 +1430,30 @@ EMSCRIPTEN_KEEPALIVE int mame_state_size() { return running_machine::emscripten_
+@@ -1430,6 +1430,46 @@ EMSCRIPTEN_KEEPALIVE int mame_state_size() { return running_machine::emscripten_
  EMSCRIPTEN_KEEPALIVE int mame_state_save(void *buf, int size) { return running_machine::emscripten_state_save(buf, size); }
  EMSCRIPTEN_KEEPALIVE int mame_state_load(const void *buf, int size) { return running_machine::emscripten_state_load(buf, size); }
  EMSCRIPTEN_KEEPALIVE void mame_run_frame() { running_machine::emscripten_run_frame(); }
@@ -24,6 +24,22 @@
 +		text += name;
 +		text += '\t';
 +		text += std::to_string(u64(valsize) * valcount * blockcount);
++		text += '\n';
++	}
++	return text.c_str();
++}
++
++// the tags of the machine's sound chips, whose own state a game played together leaves out of
++// its checks: a chip's saved state doesn't come back exactly, and what it plays is nobody's game
++EMSCRIPTEN_KEEPALIVE const char *mame_sound_tags() {
++	static std::string text;
++	text.clear();
++	running_machine *const machine = running_machine::emscripten_get_running_machine();
++	if (!machine)
++		return "";
++	for (device_sound_interface &sound : sound_interface_enumerator(machine->root_device()))
++	{
++		text += sound.device().tag();
 +		text += '\n';
 +	}
 +	return text.c_str();
