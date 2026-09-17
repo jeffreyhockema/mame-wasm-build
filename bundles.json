@@ -1,0 +1,5 @@
+{
+  "pacman": ["pacman.cpp"],
+  "cps2": ["cps2.cpp"],
+  "neogeo": ["neogeo.cpp"]
+}

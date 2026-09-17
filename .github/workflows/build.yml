@@ -1,0 +1,96 @@
+name: build
+
+on:
+  workflow_dispatch:
+    inputs:
+      bundles:
+        description: Bundle names from bundles.json, comma-separated (blank = all)
+        default: ''
+      release:
+        description: Publish the builds as a GitHub release
+        type: boolean
+        default: false
+
+env:
+  MAME_TAG: mame0244
+  EMSDK_VERSION: 3.1.8   # contemporary with MAME 0.244 (April 2022)
+
+jobs:
+  plan:
+    runs-on: ubuntu-22.04
+    outputs:
+      matrix: ${{ steps.matrix.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: matrix
+        run: python3 scripts/matrix.py "${{ inputs.bundles }}" >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: plan
+    runs-on: ubuntu-22.04
+    timeout-minutes: 350
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.plan.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check out MAME ${{ env.MAME_TAG }}
+        uses: actions/checkout@v4
+        with:
+          repository: mamedev/mame
+          ref: ${{ env.MAME_TAG }}
+          path: mame
+          fetch-depth: 1
+
+      - uses: mymindstorm/setup-emsdk@v14
+        with:
+          version: ${{ env.EMSDK_VERSION }}
+          actions-cache-folder: emsdk-cache
+
+      - name: Build ${{ matrix.name }}
+        working-directory: mame
+        run: |
+          emmake make SUBTARGET=${{ matrix.name }} SOURCES=${{ matrix.sources }} \
+            WEBASSEMBLY=1 OPTIMIZE=3 NOWERROR=1 IGNORE_GIT=1 -j"$(nproc)" 2>&1 | tee ../build.log
+          test "${PIPESTATUS[0]}" -eq 0
+
+      - name: Collect output
+        run: |
+          mkdir -p out
+          cp mame/mame${{ matrix.name }}.js mame/mame${{ matrix.name }}.wasm out/
+          echo "${{ matrix.sources }}" > out/mame${{ matrix.name }}.sources.txt
+          grep -i "unresolved symbol" build.log | sort -u > out/mame${{ matrix.name }}.unresolved.txt || true
+          ls -l out
+          gzip -9 -k -c out/mame${{ matrix.name }}.wasm | wc -c | xargs echo "wasm gzip bytes:"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mame${{ matrix.name }}
+          path: out/
+
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: log-${{ matrix.name }}
+          path: build.log
+
+  release:
+    if: ${{ inputs.release }}
+    needs: build
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          pattern: mame*
+          merge-multiple: true
+      - env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${MAME_TAG}-build${{ github.run_number }}" dist/* \
+            --repo "${{ github.repository }}" \
+            --title "MAME 0.244 WebAssembly, build ${{ github.run_number }}" \
+            --notes "Built from mamedev/mame tag ${MAME_TAG} (source: https://github.com/mamedev/mame/tree/${MAME_TAG}) with Emscripten ${EMSDK_VERSION}. No ROMs included."
