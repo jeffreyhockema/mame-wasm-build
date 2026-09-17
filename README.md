@@ -20,6 +20,11 @@ The emulation is MAME 0.244's own; only the browser glue is patched (`patches/`)
   gun can't be aimed by pointing. Adds a `-lightgunprovider sdl` that reads the pointer's
   position in the window as the gun's aim and its buttons as the gun's (a tap on a touch
   screen arrives as the left button), after the `sdl_lightgun_device` of later MAME versions.
+- `0003-state-in-memory-and-single-frames.patch`: for rollback netplay, exports
+  `mame_state_size()`, `mame_state_save(buf, size)` and `mame_state_load(buf, size)` (the whole
+  machine's state in memory, through MAME's own `save_manager::write_buffer`/`read_buffer`, the
+  way its rewind keeps states) and `mame_run_frame()`, one step of the browser main loop, so a
+  page can run frames itself.
 
 The build also generates `tms57002.hxx` (and makes the folder its include path goes through) before compiling: 0.244 declares that generated header
 as a dependency of the CPU's own sources only, so a partial build could compile a driver that

@@ -1,0 +1,75 @@
+--- a/src/emu/machine.cpp
++++ b/src/emu/machine.cpp
+@@ -38,6 +38,7 @@
+ #include <rapidjson/stringbuffer.h>
+ 
+ #include <ctime>
++#include <sstream>
+ 
+ #if defined(__EMSCRIPTEN__)
+ #include <emscripten.h>
+@@ -1386,4 +1387,49 @@ void running_machine::emscripten_load(const char *name) {
+ 	emscripten_running_machine->schedule_load(name);
+ }
+ 
++// Rollback netplay (a page runs frames itself, keeps the machine's state after each, and goes
++// back to one to run again with a late press): the state in memory, as MAME's rewind keeps it.
++
++int running_machine::emscripten_state_size() {
++	running_machine *const machine = emscripten_running_machine;
++	if (!machine)
++		return -1;
++	std::ostringstream str;
++	if (machine->m_save.write_stream(str) != STATERR_NONE)
++		return -1;
++	return int(str.tellp());
++}
++
++// 0 when saved; -2 while anonymous timers make it unsafe (as handle_saveload waits for)
++int running_machine::emscripten_state_save(void *buf, int size) {
++	running_machine *const machine = emscripten_running_machine;
++	if (!machine)
++		return -1;
++	if (!machine->m_scheduler.can_save())
++		return -2;
++	return int(machine->m_save.write_buffer(buf, size_t(size)));
++}
++
++int running_machine::emscripten_state_load(const void *buf, int size) {
++	running_machine *const machine = emscripten_running_machine;
++	if (!machine)
++		return -1;
++	if (!machine->m_scheduler.can_save())
++		return -2;
++	return int(machine->m_save.read_buffer(buf, size_t(size)));
++}
++
++// what one call of the browser's main loop does: 1/60 s of emulation and a video update
++void running_machine::emscripten_run_frame() {
++	if (emscripten_running_machine)
++		emscripten_main_loop();
++}
++
++extern "C" {
++EMSCRIPTEN_KEEPALIVE int mame_state_size() { return running_machine::emscripten_state_size(); }
++EMSCRIPTEN_KEEPALIVE int mame_state_save(void *buf, int size) { return running_machine::emscripten_state_save(buf, size); }
++EMSCRIPTEN_KEEPALIVE int mame_state_load(const void *buf, int size) { return running_machine::emscripten_state_load(buf, size); }
++EMSCRIPTEN_KEEPALIVE void mame_run_frame() { running_machine::emscripten_run_frame(); }
++}
++
+ #endif /* defined(__EMSCRIPTEN__) */
+--- a/src/emu/machine.h
++++ b/src/emu/machine.h
+@@ -364,6 +364,12 @@ public:
+ 	static void emscripten_soft_reset();
+ 	static void emscripten_save(const char *name);
+ 	static void emscripten_load(const char *name);
++
++	// rollback netplay: the whole machine's state in memory, and one step of the main loop
++	static int emscripten_state_size();
++	static int emscripten_state_save(void *buf, int size);
++	static int emscripten_state_load(const void *buf, int size);
++	static void emscripten_run_frame();
+ #endif
+ };
+ 
