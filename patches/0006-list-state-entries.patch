@@ -1,0 +1,33 @@
+--- a/src/emu/machine.cpp
++++ b/src/emu/machine.cpp
+@@ -1430,6 +1430,30 @@ EMSCRIPTEN_KEEPALIVE int mame_state_size() { return running_machine::emscripten_
+ EMSCRIPTEN_KEEPALIVE int mame_state_save(void *buf, int size) { return running_machine::emscripten_state_save(buf, size); }
+ EMSCRIPTEN_KEEPALIVE int mame_state_load(const void *buf, int size) { return running_machine::emscripten_state_load(buf, size); }
+ EMSCRIPTEN_KEEPALIVE void mame_run_frame() { running_machine::emscripten_run_frame(); }
++
++// what's in the state, for telling which part of it two machines disagree on: a line per entry,
++// its name and its size in bytes, in the order the state holds them (after a 32-byte header)
++EMSCRIPTEN_KEEPALIVE const char *mame_state_entries() {
++	static std::string text;
++	text.clear();
++	running_machine *const machine = running_machine::emscripten_get_running_machine();
++	if (!machine)
++		return "";
++	save_manager &save = machine->save();
++	for (int i = 0; i < save.registration_count(); i++)
++	{
++		void *base;
++		u32 valsize, valcount, blockcount, stride;
++		const char *const name = save.indexed_item(i, base, valsize, valcount, blockcount, stride);
++		if (!name)
++			break;
++		text += name;
++		text += '\t';
++		text += std::to_string(u64(valsize) * valcount * blockcount);
++		text += '\n';
++	}
++	return text.c_str();
++}
+ }
+ 
+ #endif /* defined(__EMSCRIPTEN__) */

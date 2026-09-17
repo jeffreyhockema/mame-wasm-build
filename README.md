@@ -33,6 +33,9 @@ The emulation is MAME 0.244's own; only the browser glue is patched (`patches/`)
   registers) weren't in save states, though the clock chip's own registers are set from them
   every second: a loaded state kept the clock it was loaded into, and two machines running the
   same state (the Neo Geo's uPD4990A, for one) parted a second later.
+- `0006-list-state-entries.patch`: `mame_state_entries()` lists what a state holds (each
+  registered item's name and size, in order), so a page comparing two machines' states can say
+  which part of the machine they disagree on.
 
 The build also generates `tms57002.hxx` (and makes the folder its include path goes through) before compiling: 0.244 declares that generated header
 as a dependency of the CPU's own sources only, so a partial build could compile a driver that
