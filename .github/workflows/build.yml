@@ -73,6 +73,9 @@ jobs:
           cp mame/${{ matrix.name }}.js mame/${{ matrix.name }}.wasm out/
           echo "${{ matrix.sources }}" > out/${{ matrix.name }}.sources.txt
           grep -i "undefined symbol" build.log | sort -u > out/${{ matrix.name }}.undefined.txt || true
+          # Undefined symbols only fail when a game calls them, so any but the two OpenGL calls
+          # MAME's docs expect mean a source file is missing from the bundle (add it to bundles.json).
+          if grep -v -e glPopAttrib -e glPushAttrib out/${{ matrix.name }}.undefined.txt; then exit 1; fi
           ls -l out
           gzip -9 -c out/${{ matrix.name }}.wasm | wc -c | xargs echo "wasm gzip bytes:"
 
