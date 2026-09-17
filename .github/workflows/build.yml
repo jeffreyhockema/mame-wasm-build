@@ -58,15 +58,16 @@ jobs:
       - name: Collect output
         run: |
           mkdir -p out
-          cp mame/mame${{ matrix.name }}.js mame/mame${{ matrix.name }}.wasm out/
-          echo "${{ matrix.sources }}" > out/mame${{ matrix.name }}.sources.txt
-          grep -i "unresolved symbol" build.log | sort -u > out/mame${{ matrix.name }}.unresolved.txt || true
+          # MAME names the output after SUBTARGET (pacman.js loads pacman.wasm by that name).
+          cp mame/${{ matrix.name }}.js mame/${{ matrix.name }}.wasm out/
+          echo "${{ matrix.sources }}" > out/${{ matrix.name }}.sources.txt
+          grep -i "undefined symbol" build.log | sort -u > out/${{ matrix.name }}.undefined.txt || true
           ls -l out
-          gzip -9 -k -c out/mame${{ matrix.name }}.wasm | wc -c | xargs echo "wasm gzip bytes:"
+          gzip -9 -c out/${{ matrix.name }}.wasm | wc -c | xargs echo "wasm gzip bytes:"
 
       - uses: actions/upload-artifact@v4
         with:
-          name: mame${{ matrix.name }}
+          name: bundle-${{ matrix.name }}
           path: out/
 
       - if: failure()
@@ -85,7 +86,7 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           path: dist
-          pattern: mame*
+          pattern: bundle-*
           merge-multiple: true
       - env:
           GH_TOKEN: ${{ github.token }}
