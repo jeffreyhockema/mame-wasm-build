@@ -1,0 +1,20 @@
+--- a/src/emu/machine.cpp
++++ b/src/emu/machine.cpp
+@@ -1330,6 +1330,17 @@ void running_machine::emscripten_main_loop()
+ 	if (machine->exit_pending())
+ 	{
+ 		emscripten_cancel_main_loop();
++
++		// run() never gets past its loop in the browser, so do what it does after it: save the
++		// NVRAM and configuration, then tell the page (Module.onMameExit) they've been written
++		machine->m_current_phase = machine_phase::EXIT;
++		machine->sound().ui_mute(true);
++		if (machine->options().nvram_save())
++			machine->nvram_save();
++		machine->m_configuration->save_settings();
++		EM_ASM(
++			if (typeof Module.onMameExit === 'function') Module.onMameExit();
++		);
+ 	}
+ 
+ 	g_profiler.stop();

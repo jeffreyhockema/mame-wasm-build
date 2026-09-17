@@ -43,6 +43,10 @@ jobs:
           path: mame
           fetch-depth: 1
 
+      - name: Apply the browser patches
+        working-directory: mame
+        run: for p in ../patches/*.patch; do echo "$p"; git apply --verbose "$p"; done
+
       - uses: mymindstorm/setup-emsdk@v14
         with:
           version: ${{ env.EMSDK_VERSION }}

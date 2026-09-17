@@ -1,12 +1,25 @@
 # mame-wasm-build
 
-WebAssembly builds of [MAME](https://www.mamedev.org/) **0.244**, compiled unmodified from the
+WebAssembly builds of [MAME](https://www.mamedev.org/) **0.244**, compiled from the
 [`mame0244`](https://github.com/mamedev/mame/tree/mame0244) source tag with Emscripten 3.1.8.
 
 A full MAME is too large to load in a browser, so the drivers are split into bundles
 (`bundles.json`: bundle name → driver source files). Each bundle builds to
 `<bundle>.js` + `<bundle>.wasm`, linked with Emscripten's IndexedDB file system (`-lidbfs.js`)
 so a page can keep MAME's settings, NVRAM and save states.
+
+## Changes to MAME's source
+
+The emulation is MAME 0.244's own; only the browser glue is patched (`patches/`):
+
+- `0001-save-nvram-and-settings-on-exit.patch`: in the browser, `running_machine::run()` hands
+  its loop to Emscripten and never returns, so the NVRAM and configuration it saves after the
+  loop were never written. The browser main loop now saves them when the machine exits, then
+  calls `Module.onMameExit()` if the page defines it.
+
+The build also generates `tms57002.hxx` before compiling: 0.244 declares that generated header
+as a dependency of the CPU's own sources only, so a partial build could compile a driver that
+includes it (`konamigx.cpp`) first.
 
 ## Building
 
@@ -17,4 +30,5 @@ Leave `bundles` blank to build everything; tick `release` to publish the files a
 
 MAME is licensed under the GNU GPL version 2 or later (portions BSD-3-Clause); see the
 [MAME source](https://github.com/mamedev/mame/tree/mame0244) for the complete license and source.
-This repository contains build scripts only — **no ROMs or other copyrighted game data**.
+The patches here are under the same license. This repository contains build scripts only —
+**no ROMs or other copyrighted game data**.
