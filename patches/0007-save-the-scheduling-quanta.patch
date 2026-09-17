@@ -1,0 +1,84 @@
+--- a/src/emu/schedule.h
++++ b/src/emu/schedule.h
+@@ -184,6 +184,18 @@
+ 	simple_list<quantum_slot>   m_quantum_list;             // list of active quanta
+ 	fixed_allocator<quantum_slot> m_quantum_allocator;      // allocator for quanta
+ 	attoseconds_t               m_quantum_minimum;          // duration of minimum quantum
++
++	// The quanta a driver asks for decide where a timeslice ends, and so how a board's CPUs
++	// interleave, but they were never part of a save state: a machine that loaded one went on
++	// cutting its timeslices the way the machine it was loaded into had been. Two copies of a
++	// game kept in step by rollback part within a frame or two of a load because of it. These
++	// hold the live list while it is written out and read back (see presave and postload).
++	static constexpr int SAVED_QUANTA = 8;
++	u32                         m_saved_quantum_count;
++	s64                         m_saved_quantum_actual[SAVED_QUANTA];
++	s64                         m_saved_quantum_requested[SAVED_QUANTA];
++	s64                         m_saved_quantum_expire_secs[SAVED_QUANTA];
++	s64                         m_saved_quantum_expire_attos[SAVED_QUANTA];
+ };
+ 
+ 
+--- a/src/emu/schedule.cpp
++++ b/src/emu/schedule.cpp
+@@ -340,8 +340,20 @@
+ 	m_timer_list = &m_timer_allocator.alloc()->init(machine, timer_expired_delegate(), true);
+ 	m_timer_list->adjust(attotime::never);
+ 
++	// the scheduling quanta, as they are written out (see presave)
++	m_saved_quantum_count = 0;
++	std::fill(std::begin(m_saved_quantum_actual), std::end(m_saved_quantum_actual), 0);
++	std::fill(std::begin(m_saved_quantum_requested), std::end(m_saved_quantum_requested), 0);
++	std::fill(std::begin(m_saved_quantum_expire_secs), std::end(m_saved_quantum_expire_secs), 0);
++	std::fill(std::begin(m_saved_quantum_expire_attos), std::end(m_saved_quantum_expire_attos), 0);
++
+ 	// register global states
+ 	machine.save().save_item(NAME(m_basetime));
++	machine.save().save_item(NAME(m_saved_quantum_count));
++	machine.save().save_item(NAME(m_saved_quantum_actual));
++	machine.save().save_item(NAME(m_saved_quantum_requested));
++	machine.save().save_item(NAME(m_saved_quantum_expire_secs));
++	machine.save().save_item(NAME(m_saved_quantum_expire_attos));
+ 	machine.save().register_presave(save_prepost_delegate(FUNC(device_scheduler::presave), this));
+ 	machine.save().register_postload(save_prepost_delegate(FUNC(device_scheduler::postload), this));
+ }
+@@ -664,6 +676,19 @@
+ 
+ void device_scheduler::presave()
+ {
++	// pack the live scheduling quanta into the state (see the note in schedule.h)
++	m_saved_quantum_count = 0;
++	for (quantum_slot *quant = m_quantum_list.first(); quant != nullptr; quant = quant->next())
++	{
++		if (m_saved_quantum_count >= SAVED_QUANTA)
++			break;
++		const u32 index = m_saved_quantum_count++;
++		m_saved_quantum_actual[index] = quant->m_actual;
++		m_saved_quantum_requested[index] = quant->m_requested;
++		m_saved_quantum_expire_secs[index] = quant->m_expire.seconds();
++		m_saved_quantum_expire_attos[index] = quant->m_expire.attoseconds();
++	}
++
+ 	// report the timer state after a log
+ 	LOG("Prior to saving state:\n");
+ #if VERBOSE
+@@ -698,6 +723,19 @@
+ 	while ((timer = private_list.detach_head()) != nullptr)
+ 		timer_list_insert(*timer);
+ 
++	// put the scheduling quanta back as they were when the state was taken, in the order
++	// add_scheduling_quantum keeps them in (shortest asked-for first)
++	while (m_quantum_list.first() != nullptr)
++		m_quantum_allocator.reclaim(m_quantum_list.detach_head());
++	for (u32 index = 0; index < m_saved_quantum_count && index < SAVED_QUANTA; index++)
++	{
++		quantum_slot &quant = *m_quantum_allocator.alloc();
++		quant.m_actual = m_saved_quantum_actual[index];
++		quant.m_requested = m_saved_quantum_requested[index];
++		quant.m_expire = attotime(m_saved_quantum_expire_secs[index], m_saved_quantum_expire_attos[index]);
++		m_quantum_list.append(quant);
++	}
++
+ 	m_suspend_changes_pending = true;
+ 	rebuild_execute_list();
+ 

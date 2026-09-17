@@ -36,6 +36,14 @@ The emulation is MAME 0.244's own; only the browser glue is patched (`patches/`)
 - `0006-list-state-entries.patch`: `mame_state_entries()` lists what a state holds (each
   registered item's name and size, in order), so a page comparing two machines' states can say
   which part of the machine they disagree on.
+- `0007-save-the-scheduling-quanta.patch`: the scheduling quanta a driver asks for
+  (`add_scheduling_quantum`, behind `perfect_quantum` and friends) decide where a timeslice ends
+  and so how a board's CPUs interleave, but they were never written to a save state. A machine
+  that loaded one went on cutting its timeslices the way the machine it was loaded into had
+  been, so it ran the same frames differently: the CPU's cycle count drifts first, then its RAM.
+  That is fatal to rollback, where a player loads a state a few frames old and runs those frames
+  again and must land where everyone else did. The live list is now packed into the state before
+  it's written and put back after it's read.
 
 The build also generates `tms57002.hxx` (and makes the folder its include path goes through) before compiling: 0.244 declares that generated header
 as a dependency of the CPU's own sources only, so a partial build could compile a driver that
