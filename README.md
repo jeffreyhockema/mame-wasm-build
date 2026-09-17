@@ -29,6 +29,10 @@ The emulation is MAME 0.244's own; only the browser glue is patched (`patches/`)
   time, so frames run faster than that (a rollback replaying several in one go) took a press on
   a frame that depended on timing. In the browser build every read polls, which makes a frame's
   presses count on that frame.
+- `0005-save-rtc-date-and-time.patch`: a real-time clock's date and time (`device_rtc_interface`'s
+  registers) weren't in save states, though the clock chip's own registers are set from them
+  every second: a loaded state kept the clock it was loaded into, and two machines running the
+  same state (the Neo Geo's uPD4990A, for one) parted a second later.
 
 The build also generates `tms57002.hxx` (and makes the folder its include path goes through) before compiling: 0.244 declares that generated header
 as a dependency of the CPU's own sources only, so a partial build could compile a driver that
