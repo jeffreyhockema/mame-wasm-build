@@ -17,7 +17,7 @@ The emulation is MAME 0.244's own; only the browser glue is patched (`patches/`)
   loop were never written. The browser main loop now saves them when the machine exits, then
   calls `Module.onMameExit()` if the page defines it.
 
-The build also generates `tms57002.hxx` before compiling: 0.244 declares that generated header
+The build also generates `tms57002.hxx` (and makes the folder its include path goes through) before compiling: 0.244 declares that generated header
 as a dependency of the CPU's own sources only, so a partial build could compile a driver that
 includes it (`konamigx.cpp`) first.
 
