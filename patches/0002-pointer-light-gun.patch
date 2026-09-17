@@ -1,0 +1,154 @@
+--- a/src/osd/modules/input/input_sdl.cpp
++++ b/src/osd/modules/input/input_sdl.cpp
+@@ -614,6 +614,80 @@ public:
+ 	}
+ };
+ 
++//============================================================
++//  sdl_lightgun_device
++//============================================================
++
++// The pointer as a light gun: where it is in the window is where the gun aims, and its buttons
++// are the gun's (a touch screen's taps arrive as the left button). After the
++// sdl_lightgun_device of later MAME versions, for the browser build, where SDL has no gun.
++class sdl_lightgun_device : public sdl_device
++{
++public:
++	struct lightgun_state
++	{
++		int32_t lX, lY;
++		int32_t buttons[MAX_BUTTONS];
++	};
++
++	lightgun_state lightgun;
++
++	sdl_lightgun_device(running_machine &machine, std::string &&name, std::string &&id, input_module &module) :
++		sdl_device(machine, std::move(name), std::move(id), DEVICE_CLASS_LIGHTGUN, module),
++		lightgun({0}),
++		m_x(0),
++		m_y(0),
++		m_window(0)
++	{
++	}
++
++	void reset() override
++	{
++		memset(&lightgun, 0, sizeof(lightgun));
++		m_x = m_y = 0;
++		m_window = 0;
++	}
++
++	void poll() override
++	{
++		sdl_device::poll();
++
++		SDL_Window *const win(m_window ? SDL_GetWindowFromID(m_window) : nullptr);
++		if (win)
++		{
++			int w, h;
++			SDL_GetWindowSize(win, &w, &h);
++			lightgun.lX = normalize_absolute_axis(m_x, 0, w - 1);
++			lightgun.lY = normalize_absolute_axis(m_y, 0, h - 1);
++		}
++	}
++
++	virtual void process_event(SDL_Event &sdlevent) override
++	{
++		switch (sdlevent.type)
++		{
++		case SDL_MOUSEMOTION:
++			m_x = sdlevent.motion.x;
++			m_y = sdlevent.motion.y;
++			m_window = sdlevent.motion.windowID;
++			break;
++
++		case SDL_MOUSEBUTTONDOWN:
++		case SDL_MOUSEBUTTONUP:
++			if (sdlevent.button.button >= 1 && sdlevent.button.button <= MAX_BUTTONS)
++				lightgun.buttons[sdlevent.button.button - 1] = (sdlevent.type == SDL_MOUSEBUTTONDOWN) ? 0x80 : 0;
++			m_x = sdlevent.button.x;
++			m_y = sdlevent.button.y;
++			m_window = sdlevent.button.windowID;
++			break;
++		}
++	}
++
++private:
++	int32_t m_x, m_y;
++	uint32_t m_window;
++};
++
+ //============================================================
+ //  sdl_joystick_device
+ //============================================================
+@@ -976,6 +1050,47 @@ public:
+ 	}
+ };
+ 
++//============================================================
++//  sdl_lightgun_module
++//============================================================
++
++class sdl_lightgun_module : public sdl_input_module
++{
++public:
++	sdl_lightgun_module() : sdl_input_module(OSD_LIGHTGUNINPUT_PROVIDER)
++	{
++	}
++
++	virtual void input_init(running_machine &machine) override
++	{
++		sdl_input_module::input_init(machine);
++
++		static int const event_types[] = {
++				int(SDL_MOUSEMOTION),
++				int(SDL_MOUSEBUTTONDOWN),
++				int(SDL_MOUSEBUTTONUP) };
++
++		sdl_event_manager::instance().subscribe(event_types, this);
++
++		// SDL has one pointer, so one gun
++		auto &devinfo = devicelist().create_device<sdl_lightgun_device>(machine, "Pointer gun", "Pointer gun", *this);
++
++		devinfo.device()->add_item("X", ITEM_ID_XAXIS, generic_axis_get_state<std::int32_t>, &devinfo.lightgun.lX);
++		devinfo.device()->add_item("Y", ITEM_ID_YAXIS, generic_axis_get_state<std::int32_t>, &devinfo.lightgun.lY);
++
++		for (int button = 0; button < 3; button++)
++		{
++			input_item_id itemid = (input_item_id)(ITEM_ID_BUTTON1 + button);
++			char defname[20];
++			snprintf(defname, sizeof(defname), "B%d", button + 1);
++
++			devinfo.device()->add_item(defname, itemid, generic_button_get_state<std::int32_t>, &devinfo.lightgun.buttons[button]);
++		}
++
++		osd_printf_verbose("Lightgun: Registered %s\n", devinfo.name());
++	}
++};
++
+ 
+ void devmap_register(device_map_t &devmap, int physical_idx, const std::string &name)
+ {
+@@ -1294,10 +1409,12 @@ private:
+ 
+ MODULE_NOT_SUPPORTED(sdl_keyboard_module, OSD_KEYBOARDINPUT_PROVIDER, "sdl")
+ MODULE_NOT_SUPPORTED(sdl_mouse_module, OSD_MOUSEINPUT_PROVIDER, "sdl")
++MODULE_NOT_SUPPORTED(sdl_lightgun_module, OSD_LIGHTGUNINPUT_PROVIDER, "sdl")
+ MODULE_NOT_SUPPORTED(sdl_joystick_module, OSD_JOYSTICKINPUT_PROVIDER, "sdl")
+ 
+ #endif // defined(SDLMAME_SDL2)
+ 
+ MODULE_DEFINITION(KEYBOARDINPUT_SDL, sdl_keyboard_module)
+ MODULE_DEFINITION(MOUSEINPUT_SDL, sdl_mouse_module)
++MODULE_DEFINITION(LIGHTGUNINPUT_SDL, sdl_lightgun_module)
+ MODULE_DEFINITION(JOYSTICKINPUT_SDL, sdl_joystick_module)
+--- a/src/osd/modules/lib/osdobj_common.cpp
++++ b/src/osd/modules/lib/osdobj_common.cpp
+@@ -268,6 +268,7 @@ void osd_common_t::register_options()
+ 	REGISTER_MODULE(m_mod_man, MOUSEINPUT_WIN32);
+ 	REGISTER_MODULE(m_mod_man, MOUSE_NONE);
+ 
++	REGISTER_MODULE(m_mod_man, LIGHTGUNINPUT_SDL);
+ 	REGISTER_MODULE(m_mod_man, LIGHTGUN_X11);
+ 	REGISTER_MODULE(m_mod_man, LIGHTGUNINPUT_RAWINPUT);
+ 	REGISTER_MODULE(m_mod_man, LIGHTGUNINPUT_WIN32);

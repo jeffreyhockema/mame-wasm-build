@@ -16,6 +16,10 @@ The emulation is MAME 0.244's own; only the browser glue is patched (`patches/`)
   its loop to Emscripten and never returns, so the NVRAM and configuration it saves after the
   loop were never written. The browser main loop now saves them when the machine exits, then
   calls `Module.onMameExit()` if the page defines it.
+- `0002-pointer-light-gun.patch`: 0.244's SDL input has no light gun, only a relative mouse, so a
+  gun can't be aimed by pointing. Adds a `-lightgunprovider sdl` that reads the pointer's
+  position in the window as the gun's aim and its buttons as the gun's (a tap on a touch
+  screen arrives as the left button), after the `sdl_lightgun_device` of later MAME versions.
 
 The build also generates `tms57002.hxx` (and makes the folder its include path goes through) before compiling: 0.244 declares that generated header
 as a dependency of the CPU's own sources only, so a partial build could compile a driver that
