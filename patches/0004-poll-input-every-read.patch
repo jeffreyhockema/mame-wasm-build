@@ -1,0 +1,17 @@
+--- a/src/osd/modules/input/input_common.h
++++ b/src/osd/modules/input/input_common.h
+@@ -415,8 +415,14 @@ class osd_options;
+ typedef std::chrono::high_resolution_clock clock_type;
+ typedef std::chrono::time_point<std::chrono::high_resolution_clock> timepoint_type;
+ 
++#if defined(__EMSCRIPTEN__)
++// every read polls: a page running frames itself (rollback netplay) sends a frame's presses
++// before running it, and they must count on that frame however fast frames are run
++#define MIN_POLLING_INTERVAL 0
++#else
+ // 10 milliseconds polling interval
+ #define MIN_POLLING_INTERVAL 10
++#endif
+ 
+ class input_module_base : public input_module
+ {

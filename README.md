@@ -25,6 +25,10 @@ The emulation is MAME 0.244's own; only the browser glue is patched (`patches/`)
   machine's state in memory, through MAME's own `save_manager::write_buffer`/`read_buffer`, the
   way its rewind keeps states) and `mame_run_frame()`, one step of the browser main loop, so a
   page can run frames itself.
+- `0004-poll-input-every-read.patch`: the OSD polls input devices at most every 10 ms of real
+  time, so frames run faster than that (a rollback replaying several in one go) took a press on
+  a frame that depended on timing. In the browser build every read polls, which makes a frame's
+  presses count on that frame.
 
 The build also generates `tms57002.hxx` (and makes the folder its include path goes through) before compiling: 0.244 declares that generated header
 as a dependency of the CPU's own sources only, so a partial build could compile a driver that
