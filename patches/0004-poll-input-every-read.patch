@@ -1,13 +1,16 @@
 --- a/src/osd/modules/input/input_common.h
 +++ b/src/osd/modules/input/input_common.h
-@@ -415,8 +415,14 @@ class osd_options;
+@@ -415,8 +415,17 @@
  typedef std::chrono::high_resolution_clock clock_type;
  typedef std::chrono::time_point<std::chrono::high_resolution_clock> timepoint_type;
  
 +#if defined(__EMSCRIPTEN__)
-+// every read polls: a page running frames itself (rollback netplay) sends a frame's presses
-+// before running it, and they must count on that frame however fast frames are run
-+#define MIN_POLLING_INTERVAL 0
++// How often input is polled, in milliseconds: MAME's own 10, unless a page that runs frames
++// itself (rollback netplay) asks for every read to poll (mame_poll_every_read), so that a frame's
++// presses count on that frame however fast the frames are run. Only for a page that needs it: a
++// mouse starts its movement again from nothing at each poll, so polling on every read loses it.
++extern int emscripten_min_polling_interval;
++#define MIN_POLLING_INTERVAL emscripten_min_polling_interval
 +#else
  // 10 milliseconds polling interval
  #define MIN_POLLING_INTERVAL 10
@@ -15,3 +18,24 @@
  
  class input_module_base : public input_module
  {
+--- a/src/osd/modules/input/input_common.cpp
++++ b/src/osd/modules/input/input_common.cpp
+@@ -14,6 +14,18 @@
+ #include "emu.h"
+ #include "input_common.h"
+ 
++#if defined(__EMSCRIPTEN__)
++#include <emscripten.h>
++
++// See MIN_POLLING_INTERVAL in input_common.h.
++int emscripten_min_polling_interval = 10;
++
++extern "C" EMSCRIPTEN_KEEPALIVE void mame_poll_every_read(int on)
++{
++	emscripten_min_polling_interval = on ? 0 : 10;
++}
++#endif
++
+ // winnt.h defines this
+ #ifdef DELETE
+ #undef DELETE
