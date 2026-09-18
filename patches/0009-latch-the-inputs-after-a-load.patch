@@ -1,14 +1,5 @@
 --- a/src/emu/ioport.cpp
 +++ b/src/emu/ioport.cpp
-@@ -1630,7 +1630,7 @@
- ioport_field *ioport_port::field(ioport_value mask) const
- {
- 	// if we got the port, look for the field
--	for (ioport_field &field : fields())
-+	for (const ioport_field &field : fields())
- 		if ((field.mask() & mask) != 0 && field.enabled())
- 			return &field;
- 	return nullptr;
 @@ -1775,6 +1775,26 @@
  void ioport_port::init_live_state()
  {
