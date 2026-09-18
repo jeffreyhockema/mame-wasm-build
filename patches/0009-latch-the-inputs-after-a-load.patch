@@ -1,0 +1,16 @@
+--- a/src/emu/ioport.h
++++ b/src/emu/ioport.h
+@@ -1283,6 +1283,13 @@
+ 
+ 	// other helpers
+ 	digital_joystick &digjoystick(int player, int joysticknum);
++#if defined(__EMSCRIPTEN__)
++	// Rollback netplay: what the ports read is latched once a frame and has never been part of
++	// a save state, so a machine that loads one goes on reading the buttons of the frame it had
++	// already reached. A page that runs frames itself latches again after a load, from the keys
++	// as they are then, so the frame about to run has the buttons it had the first time.
++	void relatch_inputs() { frame_update(); }
++#endif
+ 	int count_players() const noexcept;
+ 	s32 frame_interpolate(s32 oldval, s32 newval);
+ 	ioport_type token_to_input_type(const char *string, int &player) const;

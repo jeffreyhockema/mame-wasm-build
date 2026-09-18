@@ -49,6 +49,12 @@ The emulation is MAME 0.244's own; only the browser glue is patched (`patches/`)
   for the players itself can't do that with a browser keyboard event: the event waits in the
   queue until SDL next pumps it, which is once a frame, so a press put in while frames are being
   re-run counts a frame later than it did the first time and the players' games part.
+- `0009-latch-the-inputs-after-a-load.patch`: what a game's ports read is latched once a frame,
+  and that latch was never part of a save state: a machine that loaded one went on reading the
+  buttons of the frame it had already reached. The in-memory load (patch 0003) latches again
+  from the keys as they are then, so the frame about to run has the buttons it had the first
+  time. Without it a rollback replays a frame with the wrong button and the games part — one
+  byte of the game's own memory, and away they go.
 
 The build also generates `tms57002.hxx` (and makes the folder its include path goes through) before compiling: 0.244 declares that generated header
 as a dependency of the CPU's own sources only, so a partial build could compile a driver that
