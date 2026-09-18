@@ -8,7 +8,7 @@
  
  #if defined(__EMSCRIPTEN__)
  #include <emscripten.h>
-@@ -1375,4 +1376,56 @@
+@@ -1375,4 +1376,49 @@
  	emscripten_running_machine->schedule_load(name);
  }
  
@@ -41,14 +41,7 @@
 +		return -1;
 +	if (!machine->m_scheduler.can_save())
 +		return -2;
-+	const int err = int(machine->m_save.read_buffer(buf, size_t(size)));
-+	// What the ports read is latched once a frame and was never part of a save state, so a
-+	// machine that loads one goes on reading the buttons of the frame it had already reached.
-+	// Latching again here, from the keys as they are now, gives the frame about to run the
-+	// buttons it had the first time (see mame_set_key).
-+	if (err == STATERR_NONE)
-+		machine->ioport().relatch_inputs();
-+	return err;
++	return int(machine->m_save.read_buffer(buf, size_t(size)));
 +}
 +
 +// what one call of the browser's main loop does: 1/60 s of emulation and a video update

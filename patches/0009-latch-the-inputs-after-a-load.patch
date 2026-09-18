@@ -1,16 +1,38 @@
---- a/src/emu/ioport.h
-+++ b/src/emu/ioport.h
-@@ -1283,6 +1283,13 @@
- 
- 	// other helpers
- 	digital_joystick &digjoystick(int player, int joysticknum);
+--- a/src/emu/ioport.cpp
++++ b/src/emu/ioport.cpp
+@@ -1630,7 +1630,7 @@
+ ioport_field *ioport_port::field(ioport_value mask) const
+ {
+ 	// if we got the port, look for the field
+-	for (ioport_field &field : fields())
++	for (const ioport_field &field : fields())
+ 		if ((field.mask() & mask) != 0 && field.enabled())
+ 			return &field;
+ 	return nullptr;
+@@ -1775,6 +1775,26 @@
+ void ioport_port::init_live_state()
+ {
+ 	m_live = std::make_unique<ioport_port_live>(*this);
++
 +#if defined(__EMSCRIPTEN__)
-+	// Rollback netplay: what the ports read is latched once a frame and has never been part of
-+	// a save state, so a machine that loads one goes on reading the buttons of the frame it had
-+	// already reached. A page that runs frames itself latches again after a load, from the keys
-+	// as they are then, so the frame about to run has the buttons it had the first time.
-+	void relatch_inputs() { frame_update(); }
++	// What a port reads is worked out once a frame and held until the next one, and none of it
++	// was ever written to a save state: a machine that loaded one went on reading the buttons of
++	// the frame it had already reached. A game played by rollback loads a state a few frames old
++	// and runs those frames again, and one frame replayed with the wrong button held is enough
++	// to leave two players playing different games.
++	int index = 0;
++	machine().save().save_item(&device(), "ioport", tag(), 0, m_live->digital, "digital");
++	for (ioport_field &field : fields())
++	{
++		if (field.live().analog != nullptr)
++			continue;
++		machine().save().save_item(&device(), "ioport.field", tag(), index, field.live().value, "value");
++		machine().save().save_item(&device(), "ioport.field", tag(), index, field.live().impulse, "impulse");
++		machine().save().save_item(&device(), "ioport.field", tag(), index, field.live().last, "last");
++		machine().save().save_item(&device(), "ioport.field", tag(), index, field.live().toggle, "toggle");
++		index++;
++	}
 +#endif
- 	int count_players() const noexcept;
- 	s32 frame_interpolate(s32 oldval, s32 newval);
- 	ioport_type token_to_input_type(const char *string, int &player) const;
+ }
+ 
+ 
