@@ -1,0 +1,34 @@
+--- a/src/osd/modules/input/input_sdl.cpp
++++ b/src/osd/modules/input/input_sdl.cpp
+@@ -512,6 +512,31 @@
+ 		memset(&emscripten_keyboard->keyboard.state, 0, sizeof(emscripten_keyboard->keyboard.state));
+ }
+ 
++// A mouse that isn't the browser's own (a friend's, sent over a video stream): its movement and its
++// buttons as SDL's own events, so they reach MAME's mouse the way the host's do. The host's own
++// pointer is read by position until it's locked to the game, so events made up in the page can't
++// stand in for a mouse that only moves; these go in as movement whatever the host's pointer is doing.
++EMSCRIPTEN_KEEPALIVE void mame_mouse_move(int dx, int dy)
++{
++	SDL_Event event = {};
++	event.type = SDL_MOUSEMOTION;
++	event.motion.xrel = dx;
++	event.motion.yrel = dy;
++	SDL_PushEvent(&event);
++}
++
++// `button` as SDL numbers them: 1 left, 2 middle, 3 right.
++EMSCRIPTEN_KEEPALIVE void mame_mouse_button(int button, int down)
++{
++	if (button < 1 || button > 3)
++		return;
++	SDL_Event event = {};
++	event.type = down ? SDL_MOUSEBUTTONDOWN : SDL_MOUSEBUTTONUP;
++	event.button.button = Uint8(button);
++	event.button.state = down ? SDL_PRESSED : SDL_RELEASED;
++	SDL_PushEvent(&event);
++}
++
+ }
+ #endif
+ 

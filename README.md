@@ -59,6 +59,11 @@ The emulation is MAME 0.244's own; only the browser glue is patched (`patches/`)
   with the wrong button held is enough to leave two players playing different games — one byte
   of the game's own memory, and away they go. The latch, and the counters a held or toggled
   button keeps, now go into the state with everything else.
+- `0010-a-mouse-from-elsewhere.patch`: `mame_mouse_move(dx, dy)` and `mame_mouse_button(button,
+  down)` push a mouse's movement and buttons into MAME as SDL's own events, for a mouse that isn't
+  the browser's (a friend's, sent over a video stream to the host playing an Apple IIgs game).
+  Events made up in the page can't stand in for it: until the host's own pointer is locked to the
+  game, SDL reads the pointer by where it is, not by how far it moved.
 
 The build also generates `tms57002.hxx` (and makes the folder its include path goes through) before compiling: 0.244 declares that generated header
 as a dependency of the CPU's own sources only, so a partial build could compile a driver that
