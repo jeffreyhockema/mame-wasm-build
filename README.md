@@ -44,6 +44,11 @@ The emulation is MAME 0.244's own; only the browser glue is patched (`patches/`)
   That is fatal to rollback, where a player loads a state a few frames old and runs those frames
   again and must land where everyone else did. The live list is now packed into the state before
   it's written and put back after it's read.
+- `0008-set-a-key-straight-away.patch`: `mame_set_key(scancode, down)` and `mame_clear_keys()`
+  hold a key down or let it go there and then, in the keyboard MAME reads. A page that presses
+  for the players itself can't do that with a browser keyboard event: the event waits in the
+  queue until SDL next pumps it, which is once a frame, so a press put in while frames are being
+  re-run counts a frame later than it did the first time and the players' games part.
 
 The build also generates `tms57002.hxx` (and makes the folder its include path goes through) before compiling: 0.244 declares that generated header
 as a dependency of the CPU's own sources only, so a partial build could compile a driver that

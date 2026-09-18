@@ -1,0 +1,69 @@
+--- a/src/osd/modules/input/input_sdl.cpp
++++ b/src/osd/modules/input/input_sdl.cpp
+@@ -18,6 +18,10 @@
+ 
+ // standard sdl header
+ #include <SDL2/SDL.h>
++
++#if defined(__EMSCRIPTEN__)
++#include <emscripten.h>
++#endif
+ #include <cctype>
+ // ReSharper disable once CppUnusedIncludeDirective
+ #include <algorithm>
+@@ -371,6 +375,15 @@
+ //  sdl_keyboard_device
+ //============================================================
+ 
++class sdl_keyboard_device;
++
++// Rollback netplay: the page presses for every player itself, and a press has to count on the
++// frame it belongs to. A press made as a browser keyboard event doesn't: the event sits in the
++// queue until SDL next pumps it, which is once a frame, so a press put in while frames are being
++// re-run lands a frame late on that copy of the game and the games part. mame_set_key writes the
++// key straight into the keyboard MAME reads, there and then.
++static sdl_keyboard_device *emscripten_keyboard = nullptr;
++
+ class sdl_keyboard_device : public sdl_device
+ {
+ public:
+@@ -479,6 +492,29 @@
+ 	}
+ };
+ 
++#if defined(__EMSCRIPTEN__)
++extern "C" {
++
++// A key held down or let go of, straight away, by SDL scancode (see the note above). Nothing
++// else about the key is touched: no character reaches MAME's own menus this way, which suits a
++// page that presses for the players itself.
++EMSCRIPTEN_KEEPALIVE void mame_set_key(int scancode, int down)
++{
++	if (emscripten_keyboard == nullptr || scancode < 0 || scancode >= 0x3ff)
++		return;
++	emscripten_keyboard->keyboard.state[scancode] = down ? 0x80 : 0x00;
++}
++
++// Everything let go of at once (a hand-over, or a game that's been left).
++EMSCRIPTEN_KEEPALIVE void mame_clear_keys()
++{
++	if (emscripten_keyboard != nullptr)
++		memset(&emscripten_keyboard->keyboard.state, 0, sizeof(emscripten_keyboard->keyboard.state));
++}
++
++}
++#endif
++
+ //============================================================
+ //  sdl_mouse_device
+ //============================================================
+@@ -830,6 +866,9 @@
+ 
+ 		// SDL only has 1 keyboard add it now
+ 		auto &devinfo = devicelist().create_device<sdl_keyboard_device>(machine, "System keyboard", "System keyboard", *this);
++#if defined(__EMSCRIPTEN__)
++		emscripten_keyboard = &devinfo;
++#endif
+ 
+ 		// populate it
+ 		for (int keynum = 0; local_table[keynum].mame_key != ITEM_ID_INVALID; keynum++)
