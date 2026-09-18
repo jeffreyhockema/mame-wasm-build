@@ -27,8 +27,11 @@ The emulation is MAME 0.244's own; only the browser glue is patched (`patches/`)
   page can run frames itself.
 - `0004-poll-input-every-read.patch`: the OSD polls input devices at most every 10 ms of real
   time, so frames run faster than that (a rollback replaying several in one go) took a press on
-  a frame that depended on timing. In the browser build every read polls, which makes a frame's
-  presses count on that frame.
+  a frame that depended on timing. A page can ask for every read to poll
+  (`mame_poll_every_read(1)`), which makes a frame's presses count on that frame. It's off by
+  default: a mouse starts its movement again from nothing at each poll, so with every read
+  polling, the polls made for other reads threw the movement away before the mouse was read
+  (the Apple IIgs's pointer wouldn't move).
 - `0005-save-rtc-date-and-time.patch`: a real-time clock's date and time (`device_rtc_interface`'s
   registers) weren't in save states, though the clock chip's own registers are set from them
   every second: a loaded state kept the clock it was loaded into, and two machines running the
