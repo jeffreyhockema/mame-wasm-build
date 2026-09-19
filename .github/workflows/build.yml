@@ -97,15 +97,26 @@ jobs:
     permissions:
       contents: write
     steps:
+      # For MAME's license notice and texts, which go out with the builds.
+      - uses: actions/checkout@v4
+        with:
+          path: repo
+          sparse-checkout: |
+            COPYING
+            docs/legal
       - uses: actions/download-artifact@v4
         with:
           path: dist
           pattern: bundle-*
           merge-multiple: true
+      - name: Add the license
+        run: |
+          cp repo/COPYING dist/COPYING
+          for f in repo/docs/legal/*; do cp "$f" "dist/legal-$(basename "$f").txt"; done
       - env:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release create "${MAME_TAG}-build${{ github.run_number }}" dist/* \
             --repo "${{ github.repository }}" \
             --title "MAME 0.244 WebAssembly, build ${{ github.run_number }}" \
-            --notes "Built from mamedev/mame tag ${MAME_TAG} (source: https://github.com/mamedev/mame/tree/${MAME_TAG}) with Emscripten ${EMSDK_VERSION}. No ROMs included."
+            --notes "Built from mamedev/mame tag ${MAME_TAG} (source: https://github.com/mamedev/mame/tree/${MAME_TAG}) with the patches in ${{ github.server_url }}/${{ github.repository }}/tree/${{ github.sha }}, using Emscripten ${EMSDK_VERSION}. MAME is licensed under the GNU GPL v2 (COPYING and legal-*.txt). No ROMs included."

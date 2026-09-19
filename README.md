@@ -76,7 +76,14 @@ Leave `bundles` blank to build everything; tick `release` to publish the files a
 
 ## License
 
-MAME is licensed under the GNU GPL version 2 or later (portions BSD-3-Clause); see the
-[MAME source](https://github.com/mamedev/mame/tree/mame0244) for the complete license and source.
-The patches here are under the same license. This repository contains build scripts only —
-**no ROMs or other copyrighted game data**.
+MAME as a whole is licensed under the GNU General Public License, version 2 ([LICENSE](LICENSE));
+individual source files may be under less restrictive licenses, as their headers say. MAME's own
+notice is [COPYING](COPYING), with the full license texts it refers to in [docs/legal](docs/legal),
+all as they are in MAME's [`mame0244`](https://github.com/mamedev/mame/tree/mame0244) source.
+The patches and build scripts here are under the same license (GPL-2.0).
+
+Each release carries `COPYING` and the texts from `docs/legal` (as `legal-<name>.txt`) next to
+the builds. The source of a release is MAME's `mame0244` tag with this repository's patches at
+the commit the release names.
+
+This repository contains build scripts only — **no ROMs or other copyrighted game data**.
